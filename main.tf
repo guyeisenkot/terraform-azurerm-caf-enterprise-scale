@@ -92,5 +92,6 @@ resource "azurerm_sql_database" "example" {
   tags = {
     environment = "production"
     yor_trace = "fc8c2d7a-1997-4fc2-95c1-277cba5c2a39"
+    owner = "guy"
   }
 }
