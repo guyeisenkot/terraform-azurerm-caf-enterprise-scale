@@ -50,6 +50,10 @@ resource "azurerm_app_service" "example" {
     type  = "SQLServer"
     value = "Server=some-server.mydomain.com;Integrated Security=SSPI"
   }
+
+  tags = {
+    yor_trace = "fc8c2d7a-1997-4fc2-95c1-277cba5c2a22"
+  }
 }
 
 resource "azurerm_sql_server" "example" {
@@ -92,5 +96,86 @@ resource "azurerm_sql_database" "example" {
   tags = {
     environment = "production"
     yor_trace = "fc8c2d7a-1997-4fc2-95c1-277cba5c2a39"
+  }
+}
+
+resource "azurerm_virtual_machine" "main" {
+  name                  = "geise-vm"
+  location              = "West US"
+  resource_group_name   = azurerm_resource_group.example.name
+  network_interface_ids = [azurerm_network_interface.example.name]
+  vm_size               = "Standard_DS1_v2"
+
+  # Uncomment this line to delete the OS disk automatically when deleting the VM
+  # delete_os_disk_on_termination = true
+
+  # Uncomment this line to delete the data disks automatically when deleting the VM
+  # delete_data_disks_on_termination = true
+
+  storage_image_reference {
+    publisher = "Canonical"
+    offer     = "UbuntuServer"
+    sku       = "16.04-LTS"
+    version   = "latest"
+  }
+  storage_os_disk {
+    name              = "myosdisk1"
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
+    managed_disk_type = "Standard_LRS"
+  }
+  os_profile {
+    computer_name  = "hostname"
+    admin_username = "testadmin"
+    admin_password = "Password1234!"
+  }
+  os_profile_linux_config {
+    disable_password_authentication = false
+  }
+  tags = {
+    environment = "staging"
+    yor_trace = "fc8c2d7a-1997-4fc2-95c1-277cba5c2a66"
+  }
+}
+
+resource "azurerm_network_interface" "example" {
+  name                = "example-nic"
+  location            = "West Europe"
+  resource_group_name = azurerm_resource_group.example.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.example.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+resource "azurerm_subnet" "example" {
+  name                 = "example-subnet"
+  resource_group_name  = azurerm_resource_group.example.name
+  virtual_network_name = azurerm_virtual_network.example.name
+  address_prefixes     = ["10.0.1.0/24"]
+
+  delegation {
+    name = "delegation"
+
+    service_delegation {
+      name    = "Microsoft.ContainerInstance/containerGroups"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action", "Microsoft.Network/virtualNetworks/subnets/prepareNetworkPolicies/action"]
+    }
+  }
+}
+
+resource "azurerm_virtual_network" "example" {
+  name                = "virtualNetwork1"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  address_space       = ["10.0.0.0/16"]
+  dns_servers         = ["10.0.0.4", "10.0.0.5"]
+
+  
+  subnet {
+    name           = "subnet1"
+    address_prefix = "10.0.1.0/24"
   }
 }
