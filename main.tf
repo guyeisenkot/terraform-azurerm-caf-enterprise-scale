@@ -1,85 +1,96 @@
-# The following module is used to generate the configuration
-# data used to deploy all archetype resources at the
-# Management Group scope. Future plans include repeating this
-# for Subscription scope configuration so we can improve
-# coverage for archetype patterns which deploy specific
-# groups of Resources within a Subscription.
-module "management_group_archetypes" {
-  for_each = local.es_landing_zones_map
-  source   = "./modules/archetypes"
+# Configure the Azure provider
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 2.65"
+    }
+  }
 
-  root_id                 = "${local.provider_path.management_groups}${local.root_id}"
-  scope_id                = each.key
-  archetype_id            = each.value.archetype_config.archetype_id
-  parameters              = each.value.archetype_config.parameters
-  access_control          = each.value.archetype_config.access_control
-  library_path            = local.library_path
-  template_file_variables = local.template_file_variables
-  default_location        = local.default_location
-  enforcement_mode = merge(
-    try(module.connectivity_resources.configuration.archetype_config_overrides[basename(each.key)].enforcement_mode, null),
-    try(module.identity_resources.configuration.archetype_config_overrides[basename(each.key)].enforcement_mode, null),
-    try(module.management_resources.configuration.archetype_config_overrides[basename(each.key)].enforcement_mode, null),
-  )
+  required_version = ">= 0.14.9"
 }
 
-# The following module is used to generate the configuration
-# data used to deploy platform resources based on the
-# "management" landing zone archetype.
-module "management_resources" {
-  source = "./modules/management"
-
-  # Mandatory input variables
-  enabled         = local.deploy_management_resources
-  root_id         = local.root_id
-  subscription_id = local.subscription_id_management
-  settings        = local.configure_management_resources.settings
-
-  # Optional input variables (basic configuration)
-  location = coalesce(local.configure_management_resources.location, local.default_location)
-  tags     = local.management_resources_tags
-
-  # Optional input variables (advanced configuration)
-  resource_prefix                              = try(local.configure_management_resources.advanced.resource_prefix, local.empty_string)
-  resource_suffix                              = try(local.configure_management_resources.advanced.resource_suffix, local.empty_string)
-  existing_resource_group_name                 = try(local.configure_management_resources.advanced.existing_resource_group_name, local.empty_string)
-  existing_log_analytics_workspace_resource_id = try(local.configure_management_resources.advanced.existing_log_analytics_workspace_resource_id, local.empty_string)
-  existing_automation_account_resource_id      = try(local.configure_management_resources.advanced.existing_automation_account_resource_id, local.empty_string)
-  link_log_analytics_to_automation_account     = try(local.configure_management_resources.advanced.link_log_analytics_to_automation_account, true)
-  custom_settings_by_resource_type             = try(local.configure_management_resources.advanced.custom_settings_by_resource_type, local.empty_map)
+provider "azurerm" {
+  features {}
 }
 
-# The following module is used to generate the configuration
-# data used to deploy platform resources based on the
-# "identity" landing zone archetype.
-module "identity_resources" {
-  source = "./modules/identity"
-
-  # Mandatory input variables
-  enabled  = local.deploy_identity_resources
-  root_id  = local.root_id
-  settings = local.configure_identity_resources.settings
+resource "azurerm_resource_group" "example" {
+  name     = "example-resources"
+  location = "West Europe"
 }
 
-# The following module is used to generate the configuration
-# data used to deploy platform resources based on the
-# "connectivity" landing zone archetype.
-module "connectivity_resources" {
-  source = "./modules/connectivity"
+resource "azurerm_app_service_plan" "example" {
+  name                = "example-appserviceplan"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
 
-  # Mandatory input variables
-  enabled         = local.deploy_connectivity_resources
-  root_id         = local.root_id
-  subscription_id = local.subscription_id_connectivity
-  settings        = local.configure_connectivity_resources.settings
+  sku {
+    tier = "Standard"
+    size = "S1"
+  }
+}
 
-  # Optional input variables (basic configuration)
-  location = coalesce(local.configure_connectivity_resources.location, local.default_location)
-  tags     = local.connectivity_resources_tags
+resource "azurerm_app_service" "example" {
+  name                = "global-app-service"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  app_service_plan_id = azurerm_app_service_plan.example.id
 
-  # Optional input variables (advanced configuration)
-  resource_prefix                           = try(local.configure_connectivity_resources.advanced.resource_prefix, local.empty_string)
-  resource_suffix                           = try(local.configure_connectivity_resources.advanced.resource_suffix, local.empty_string)
-  existing_ddos_protection_plan_resource_id = try(local.configure_connectivity_resources.advanced.existing_resource_group_name, local.empty_string)
-  custom_settings_by_resource_type          = try(local.configure_connectivity_resources.advanced.custom_settings_by_resource_type, local.empty_map)
+  site_config {
+    dotnet_framework_version = "v4.0"
+    scm_type                 = "LocalGit"
+  }
+
+  app_settings = {
+    "SOME_KEY" = "some-value"
+  }
+
+  connection_string {
+    name  = "Database"
+    type  = "SQLServer"
+    value = "Server=some-server.mydomain.com;Integrated Security=SSPI"
+  }
+}
+
+resource "azurerm_sql_server" "example" {
+  name                         = "globalexamplesqlserver"
+  resource_group_name          = azurerm_resource_group.example.name
+  location                     = "West US"
+  version                      = "12.0"
+  administrator_login          = "4dm1n157r470r"
+  administrator_login_password = "4-v3ry-53cr37-p455w0rd"
+
+  tags = {
+    environment = "production"
+    yor_trace = "fc8c2d7a-1997-4fc2-95c1-277cba5c2a38"
+  }
+}
+
+resource "azurerm_storage_account" "example" {
+  name                     = "examplesglobal"
+  resource_group_name      = azurerm_resource_group.example.name
+  location                 = azurerm_resource_group.example.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+}
+
+resource "azurerm_sql_database" "example" {
+  name                = "myexamplesqldatabase"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = "West US"
+  server_name         = azurerm_sql_server.example.name
+
+  extended_auditing_policy {
+    storage_endpoint                        = azurerm_storage_account.example.primary_blob_endpoint
+    storage_account_access_key              = azurerm_storage_account.example.primary_access_key
+    storage_account_access_key_is_secondary = true
+    retention_in_days                       = 6
+  }
+
+
+
+  tags = {
+    environment = "production"
+    yor_trace = "fc8c2d7a-1997-4fc2-95c1-277cba5c2a39"
+  }
 }
