@@ -13,12 +13,6 @@ provider "azurerm" {
   features {}
 }
 
-module "bridgecrew-read" {
-  source                     = "bridgecrewio/bridgecrew-azure-read-only/azurerm"
-  org_name               = "geisenkot"
-  bridgecrew_token = "c55fa0df-5cd5-52df-b8d1-25a8a57adb31"
-}
-
 resource "azurerm_resource_group" "rg" {
   name     = "myTFResourceGroup"
   location = "westus2"
