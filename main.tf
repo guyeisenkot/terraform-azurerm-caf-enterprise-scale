@@ -1,4 +1,3 @@
-# Configure the Azure provider
 terraform {
   required_providers {
     azurerm = {
@@ -12,6 +11,38 @@ terraform {
 
 provider "azurerm" {
   features {}
+}
+
+module "bridgecrew-read" {
+  source                     = "bridgecrewio/bridgecrew-azure-read-only/azurerm"
+  org_name               = "geisenkot"
+  bridgecrew_token = "c55fa0df-5cd5-52df-b8d1-25a8a57adb31"
+}
+
+resource "azurerm_resource_group" "rg" {
+  name     = "myTFResourceGroup"
+  location = "westus2"
+}
+
+resource "azurerm_postgresql_server" "postgress" {
+  name                = "psqlserver"
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+
+  administrator_login          = "psqladminun"
+  administrator_login_password = "H@Sh1CoR3!"
+
+  sku_name   = "GP_Gen5_4"
+  version    = "9.6"
+  storage_mb = 640000
+
+  backup_retention_days        = 7
+  geo_redundant_backup_enabled = true
+  auto_grow_enabled            = true
+
+  public_network_access_enabled    = false
+  ssl_enforcement_enabled          = true
+  ssl_minimal_tls_version_enforced = "TLS1_2"
 }
 
 resource "azurerm_resource_group" "example" {
@@ -31,7 +62,7 @@ resource "azurerm_app_service_plan" "example" {
 }
 
 resource "azurerm_app_service" "example" {
-  name                = "global-app-service"
+  name                = "guy-test-app-service"
   location            = azurerm_resource_group.example.location
   resource_group_name = azurerm_resource_group.example.name
   app_service_plan_id = azurerm_app_service_plan.example.id
@@ -50,47 +81,9 @@ resource "azurerm_app_service" "example" {
     type  = "SQLServer"
     value = "Server=some-server.mydomain.com;Integrated Security=SSPI"
   }
-}
-
-resource "azurerm_sql_server" "example" {
-  name                         = "globalexamplesqlserver"
-  resource_group_name          = azurerm_resource_group.example.name
-  location                     = "West US"
-  version                      = "12.0"
-  administrator_login          = "4dm1n157r470r"
-  administrator_login_password = "4-v3ry-53cr37-p455w0rd"
 
   tags = {
-    environment = "production"
-    yor_trace = "fc8c2d7a-1997-4fc2-95c1-277cba5c2a38"
-  }
-}
-
-resource "azurerm_storage_account" "example" {
-  name                     = "examplesglobal"
-  resource_group_name      = azurerm_resource_group.example.name
-  location                 = azurerm_resource_group.example.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-}
-
-resource "azurerm_sql_database" "example" {
-  name                = "myexamplesqldatabase"
-  resource_group_name = azurerm_resource_group.example.name
-  location            = "West US"
-  server_name         = azurerm_sql_server.example.name
-
-  extended_auditing_policy {
-    storage_endpoint                        = azurerm_storage_account.example.primary_blob_endpoint
-    storage_account_access_key              = azurerm_storage_account.example.primary_access_key
-    storage_account_access_key_is_secondary = true
-    retention_in_days                       = 6
-  }
-
-
-
-  tags = {
-    environment = "production"
-    yor_trace = "fc8c2d7a-1997-4fc2-95c1-277cba5c2a39"
+    drift = "no"
+    yor_trace = "4afc55d6-28f0-4a20-84ea-ababeadfd2b0"
   }
 }
