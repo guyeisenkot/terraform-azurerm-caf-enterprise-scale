@@ -80,6 +80,9 @@ resource "azurerm_app_service" "example" {
     drift = "no"
     yor_trace = "4afc55d6-28f0-4a20-84ea-ababeadfd2b0"
   }
+  storage_account = {
+    type = "AzureFiles"
+  }
 }
 
 resource "azurerm_virtual_network" "example" {
